@@ -39,13 +39,13 @@ def main():
 
     # Create input form for fixed parameters
     st.subheader("Fixed Product Parameters")
-    for param in fixed_params.keys():
-        fixed_params[param] = st.text_input(f"{param}", fixed_params[param])
+    for idx, param in enumerate(fixed_params.keys()):
+        fixed_params[param] = st.text_input(f"{param}", fixed_params[param], key=f"fixed_{idx}")
     
     # Create input form for dynamic product declinations
     st.subheader("Product Declinations")
-    for param in dynamic_params.keys():
-        dynamic_params[param] = st.text_input(f"{param}", dynamic_params[param])
+    for idx, param in enumerate(dynamic_params.keys()):
+        dynamic_params[param] = st.text_input(f"{param}", dynamic_params[param], key=f"dynamic_{idx}")
 
     # Create button to generate products
     if st.button("Generate Products"):
