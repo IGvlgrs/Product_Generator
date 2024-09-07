@@ -52,11 +52,16 @@ def main():
     # Create button to generate products
     if st.button("Generate Products"):
         df = generate_products(fixed_params, dynamic_params)
-        st.write("Generated Products Data")
-        st.dataframe(df)
         
-        # Option to download as CSV file
-        download_csv(df)
+        # Display the generated DataFrame
+        if not df.empty:
+            st.write("Generated Products Data")
+            st.dataframe(df)
+
+            # Provide download button after displaying the DataFrame
+            download_csv(df)
+        else:
+            st.warning("No data generated. Please check your inputs.")
 
 # Function to generate product variations
 def generate_products(fixed_params, dynamic_params):
@@ -68,7 +73,10 @@ def generate_products(fixed_params, dynamic_params):
         dynamic_variations[param] = [v.strip() for v in value.split(",") if v.strip()]
 
     # Generate all possible combinations of dynamic parameters using itertools.product
-    dynamic_combinations = list(itertools.product(*dynamic_variations.values()))
+    if dynamic_variations:
+        dynamic_combinations = list(itertools.product(*dynamic_variations.values()))
+    else:
+        dynamic_combinations = []
 
     product_data = []
     
