@@ -19,10 +19,9 @@ fixed_params = {
     'Production OTHERS': ''
 }
 
-# Define dynamic parameters for product declinations
+# Define dynamic parameters for product declinations (removed 'Family')
 dynamic_params = {
     'Name': '',
-    'Family': '',
     'Number of Irises': '',
     'Finishing Effects': '',
     'Shape': '',
@@ -35,6 +34,16 @@ dynamic_params = {
     'HS Code': ''
 }
 
+# Desired output order for the final table and CSV
+output_column_order = [
+    'Product Type', 'Can be Sold', 'Can be Purchased', 'Product Category',
+    'Weight unit of measure label', 'Background', 'Routes', 'Purchase UoM',
+    'Family', 'Subfamily', 'Production WW', 'Production OTHERS',
+    'Name', 'Number of Irises', 'Finishing Effects', 'Shape', 
+    'Depth (unpacked)', 'Width (unpacked)', 'Barcode', 'Width', 
+    'Depth', 'Weight', 'HS Code'
+]
+
 # Streamlit app
 def main():
     st.title("Product Generator for ERP")
@@ -44,7 +53,7 @@ def main():
     for idx, param in enumerate(fixed_params.keys()):
         fixed_params[param] = st.text_input(f"{param}", fixed_params[param], key=f"fixed_{idx}")
     
-    # Create input form for dynamic product declinations (allowing comma-separated values for variations)
+    # Create input form for dynamic product declinations (without 'Family')
     st.subheader("Product Declinations (Use comma to separate multiple variations)")
     for idx, param in enumerate(dynamic_params.keys()):
         dynamic_params[param] = st.text_input(f"{param}", dynamic_params[param], key=f"dynamic_{idx}")
@@ -89,6 +98,10 @@ def generate_products(fixed_params, dynamic_params):
     
     # Create DataFrame from product data
     df = pd.DataFrame(product_data)
+
+    # Reorder the DataFrame columns to match the desired output order
+    df = df[output_column_order]
+    
     return df
 
 # Function to handle CSV export
