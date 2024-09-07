@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import itertools
 
 # Define fixed parameters
 fixed_params = {
@@ -42,8 +43,8 @@ def main():
     for idx, param in enumerate(fixed_params.keys()):
         fixed_params[param] = st.text_input(f"{param}", fixed_params[param], key=f"fixed_{idx}")
     
-    # Create input form for dynamic product declinations
-    st.subheader("Product Declinations")
+    # Create input form for dynamic product declinations (allowing comma-separated values for variations)
+    st.subheader("Product Declinations (Use comma to separate multiple variations)")
     for idx, param in enumerate(dynamic_params.keys()):
         dynamic_params[param] = st.text_input(f"{param}", dynamic_params[param], key=f"dynamic_{idx}")
 
@@ -58,13 +59,23 @@ def main():
 
 # Function to generate product variations
 def generate_products(fixed_params, dynamic_params):
-    # Create a list of dictionaries with the generated product variations
-    product_data = []
+    # Create a list of dynamic parameters with variations
+    dynamic_variations = {}
+    
+    # Split each input by commas to get multiple values
+    for param, value in dynamic_params.items():
+        dynamic_variations[param] = [v.strip() for v in value.split(",") if v.strip()]
 
-    # Example: Simulating multiple combinations (add logic here to create more variations as needed)
-    for i in range(5):  # You can change this logic to generate variations as per user input
-        product = {**fixed_params, **dynamic_params}
-        product['Name'] += f" Variation {i+1}"  # Example: Add variation to name
+    # Generate all possible combinations of dynamic parameters using itertools.product
+    dynamic_combinations = list(itertools.product(*dynamic_variations.values()))
+
+    product_data = []
+    
+    # Create a dictionary for each product combination with fixed and dynamic parameters
+    for combination in dynamic_combinations:
+        product = {**fixed_params}
+        for idx, param in enumerate(dynamic_variations.keys()):
+            product[param] = combination[idx]
         product_data.append(product)
     
     # Create DataFrame from product data
