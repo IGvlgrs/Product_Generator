@@ -19,7 +19,7 @@ fixed_params = {
     'Production OTHERS': ''
 }
 
-# Define dynamic parameters for product declinations (removed 'Family')
+# Define dynamic parameters for product declinations (added 'Size')
 dynamic_params = {
     'Name': '',
     'Number of Irises': '',
@@ -31,7 +31,8 @@ dynamic_params = {
     'Width': '',
     'Depth': '',
     'Weight': '',
-    'HS Code': ''
+    'HS Code': '',
+    'Size': ''  # New 'Size' field
 }
 
 # Desired output order for the final table and CSV
@@ -41,7 +42,7 @@ output_column_order = [
     'Family', 'Subfamily', 'Production WW', 'Production OTHERS',
     'Name', 'Number of Irises', 'Finishing Effects', 'Shape', 
     'Depth (unpacked)', 'Width (unpacked)', 'Barcode', 'Width', 
-    'Depth', 'Weight', 'HS Code'
+    'Depth', 'Weight', 'HS Code', 'Size'  # Included 'Size' in the output order
 ]
 
 # Streamlit app
@@ -53,7 +54,7 @@ def main():
     for idx, param in enumerate(fixed_params.keys()):
         fixed_params[param] = st.text_input(f"{param}", fixed_params[param], key=f"fixed_{idx}")
     
-    # Create input form for dynamic product declinations (without 'Family')
+    # Create input form for dynamic product declinations (including 'Size')
     st.subheader("Product Declinations (Use comma to separate multiple variations)")
     for idx, param in enumerate(dynamic_params.keys()):
         dynamic_params[param] = st.text_input(f"{param}", dynamic_params[param], key=f"dynamic_{idx}")
