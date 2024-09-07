@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import itertools
+from io import BytesIO
 
 # Define fixed parameters
 fixed_params = {
@@ -54,8 +55,8 @@ def main():
         st.write("Generated Products Data")
         st.dataframe(df)
         
-        # Option to download as Excel file
-        st.download_button("Download as Excel", df.to_excel(index=False), "products.xlsx", "application/vnd.ms-excel")
+        # Option to download as CSV file
+        download_csv(df)
 
 # Function to generate product variations
 def generate_products(fixed_params, dynamic_params):
@@ -81,6 +82,25 @@ def generate_products(fixed_params, dynamic_params):
     # Create DataFrame from product data
     df = pd.DataFrame(product_data)
     return df
+
+# Function to handle CSV export
+def download_csv(df):
+    # Create a BytesIO buffer
+    output = BytesIO()
+    
+    # Write the DataFrame to the buffer as a CSV file
+    df.to_csv(output, index=False)
+    
+    # Set the buffer's position to the start
+    output.seek(0)
+    
+    # Provide the download button with the CSV file
+    st.download_button(
+        label="Download as CSV",
+        data=output,
+        file_name="products.csv",
+        mime="text/csv"
+    )
 
 if __name__ == "__main__":
     main()
