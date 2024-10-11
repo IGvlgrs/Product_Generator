@@ -1,157 +1,208 @@
 import streamlit as st
-import pandas as pd
+from computer import compute_ArtName, compute_name, compute_barcode, compute_internal_reference, compute_shape, compute_height, compute_width, compute_depth,compute_ratio
 import itertools
+import pandas as pd
 from io import BytesIO
 
-# Define fixed parameters
-fixed_params = {
-    'Material': '',
-    'Short Material': '',
+# Constants
+Customer_Lead_Time = 21
+
+
+Final_df = {
+    'Name': '',
+    'Internal Reference': '',
+    'Product Type': '',
     'Can Be Sold': '',
     'Can Be Purchased': '',
-    'Product Type': '',
+    'Custmer Lead Time': Customer_Lead_Time,
+    'Depth (unpacked)': '',
+    'Width (unpacked)': '',
+    'Height (unpacked)': '',
+    'Weight unit of measurment': 'KG',
+    'Weight (unpacked)': '',
     'Product Category': '',
-    'Weight unit of measure label': '',
+    'Short': '',
+    'Mount Type': '',
+    'Background': 'Black',
+    'Shape': '',
+    'Effect': '',
     'Is Round': '',
+    'Unit of Measure': '',
     'Routes': '',
-    'Purchase UoM': '',
     'Family': '',
     'Subfamily': '',
+    'Format': '',
+    'Finishing Effects': '',
+    'Number of Irises': '',
+    'Barcode': '',
     'Production WW': '',
     'Production OTHERS': '',
-    'Customer Lead Time': '',
+    'Production at IGP': '',
+    'Height (packed)': '',
+    'Width (packed)': '',
+    'Depth (packed)': '',
+    'Weight (packed)': '',
     'HS Code': '',
+    'Package used for delivery': '',
+    'ratio': ''
 }
 
-# Define dynamic parameters for product declinations (added 'Size')
 dynamic_params = {
+    'Subfamily': '',
     'Number of Irises': '',
     'Finishing Effects': '',
     'Background': '',
-    'Shape': '',  # This will be computed based on the size
-    'Sizes': '',  # Size format: 10x10, 20x20, 30x30, 20x30
+    'Mount Type': '',
+    'Format': '',
 }
 
-Cans = ['Can Be Sold', 'Can Be Purchased']
-true_false = ['True', 'False']
+# Fixed parameters with text input fields
+fixed_params = {
+    'Family Type': '',
+    'Short Family Type': '',
+    'Can Be Sold': '',
+    'Can Be Purchased': '',
+    'Product Type': '',
+    'Production WW': '',
+    'Production OTHERS': '',
+    'Production at IGP': '',
+    'Customer Lead Time': Customer_Lead_Time,
+    'HS Code': '',
+    'Product Category': '',
+    'Product Type': '',
+    'Routes': '',
+    'Unit of Measure': ''
+}
 
-Checkbox = ['Is Round']
 
-# Compute the name of the product based on material and size
-def compute_name(fixed_params, dynamic_params):
-    return f"{fixed_params['Material']} {fixed_params['Short Material']} {dynamic_params.get('Sizes', '')}"
+# Text input fields for static parameters
+TextInputs = {
+        'Family Type': '',
+        'Short Family Type': ''
+}
 
-# Compute the barcode of the product based on various fields
-def compute_barcode(row):
-    return f"{row['Material']}{row['Short Material']}{row['Sizes']}{row['Finishing Effects']}{row['Number of Irises']}"
+# Checkboxes for boolean inputs
+Checkboxes = {
+    'Can Be Sold': False,
+    'Can Be Purchased': False,
+    'Production at IGP': False,
+    'Production WW': False,
+    'Production OTHERS': False,
+    'Is Round': False
+}
 
-# Compute the internal reference
-def compute_internal_reference(row):
-    return f"{row['Material']}{row['Short Material']}{row['Sizes']}{row['Finishing Effects']}{row['Number of Irises']}"
 
-# Function to compute shape automatically based on the size and whether it's round
-def compute_shape(size, is_round):
-    if is_round:
-        return "Round"
-    dimensions = [int(dim) for dim in size.split('x')]
-    if len(dimensions) == 2:
-        if dimensions[0] == dimensions[1]:
-            return "Square"
-        else:
-            return "Rectangle"
-    return "Unknown"
+# Dropdown selectors with choices
+Selectors = {
+    'Product Category': ['MANUFACTURED FINISHED PRODUCTS', 'RAW MATERIALS', 'FINISHED PRODUCTS'],
+    'Product Type': ['Storable Product', 'Consumable', 'Service'],
+    'Routes': ['Replenish on Order (MTO)', 'Manufacture'],
+    'Unit of Measure': ['Unit(s)', 'Box(es)', 'Pallet(s)', 'Kg(s)', 'm(s)']
+}
 
-# Streamlit app
+
+# Function to generate product variations
+def generate_products(fixed_params, dynamic_params):
+    # Split dynamic parameters into lists of values
+    dynamic_values = {}
+    for param, value in dynamic_params.items():
+        # Split by commas and strip whitespace, treating '-' as empty
+        dynamic_values[param] = [v.strip() if v.strip() != '-' else '' for v in value.split(',')]
+
+    # Generate all combinations of dynamic parameters
+    dynamic_combinations = list(itertools.product(*dynamic_values.values()))
+
+    # Prepare the final product list (with the structure of Final_df)
+    product_list = []
+    inc = 456
+    for combo in dynamic_combinations:
+        # Start with a copy of Final_df for each product
+        product = Final_df.copy()
+        
+        # Update fixed parameters in the product
+        for key, value in fixed_params.items():
+            product[key] = value
+        
+        # Update dynamic parameters in the product
+        for i, param in enumerate(dynamic_values.keys()):
+            product[param] = combo[i]
+        artname = compute_ArtName(product)
+        product['Name'] = compute_name(product, artname)
+        product['ratio'] = compute_ratio(product)
+        product['Short'] = product['Name']
+        product['Barcode'] = compute_barcode(product)
+        product['Internal Reference'] = compute_internal_reference(product, inc)
+        # Increment for internal reference to fix
+        inc += 1
+        product['Shape'] = compute_shape(product['Format'], product['Number of Irises'], product['Is Round'])
+        product['Height (unpacked)'] = compute_height(product)
+        product['Width (unpacked)'] = compute_width(product)
+        product['Depth (unpacked)'] = compute_depth(product)
+        # Add this product variant to the list
+        product_list.append(product)
+
+    # Convert the product list to a DataFrame
+    df = pd.DataFrame(product_list)
+    ## Drop lines where shape = Rectangle and ratio = integer
+    df_filtered = df[~((df['Shape'] == 'Rectangle') & (df['ratio'] == df['ratio'].astype(int)))]
+    return df
+
+
 def main():
-    st.title("Product Generator for ERP")
-    
-    # Create input form for fixed parameters
-    st.subheader("Fixed Product Parameters")
-    for idx, param in enumerate(fixed_params.keys()):
-        if param in Cans:
-            fixed_params[param] = st.selectbox(f"{param}", true_false, key=f"fixed_{idx}")
-        elif param in Checkbox:
-            fixed_params[param] = st.checkbox(f"{param}", key=f"fixed_{idx}")
-        else:
-            fixed_params[param] = st.text_input(f"{param}", fixed_params[param], key=f"fixed_{idx}")
+    st.title("Product Declinations")
 
-    # Create input form for dynamic product declinations (including 'Size')
-    st.subheader("Product Declinations (Use comma to separate multiple variations)")
+    # Section for fixed parameters
+    # Divider
+    st.markdown("---")
+    st.subheader("Fixed Product Parameters")
+    # Section for Family Type
+    st.subheader("Define the Family Type")
+
+    for key in TextInputs:
+        fixed_params[key] = st.text_input(key, value=fixed_params[key])
+
+    # Section for checkboxes
+    st.subheader("Production Checkboxes")
+    for key in Checkboxes:
+        fixed_params[key] = st.checkbox(key, value=Checkboxes[key])
+
+    # Section for dropdown selectors
+    st.subheader("Define following selectors")
+    selector_values = {}
+    for key, options in Selectors.items():
+        fixed_params[key] = st.selectbox(key, options)
+
+    # Section for dynamic parameters 
+    st.markdown("---")
+    st.subheader("Dynamic Product Parameters")
+    st.write("To be defined with coma separated values, please add '-' for empty values and if an empty value is needed")
+    
     for idx, param in enumerate(dynamic_params.keys()):
+        if param == 'Subfamily':
+            st.write("Short for Subfamily Type will be computed with its initials")
+        if param == 'Format':
+            st.write("Format example : '10x20, 20x30, 30x40'")
         dynamic_params[param] = st.text_input(f"{param}", dynamic_params[param], key=f"dynamic_{idx}")
 
-    # Create button to generate products
+    ## Generate the different product declinations    
+    st.markdown("---")
     if st.button("Generate Products"):
         df = generate_products(fixed_params, dynamic_params)
-        
-        # Display the generated DataFrame
         if not df.empty:
             st.write("Generated Products Data")
             st.dataframe(df)
-
-            # Provide download button after displaying the DataFrame
             download_csv(df)
         else:
             st.warning("No data generated. Please check your inputs.")
 
-# Function to generate product variations
-def generate_products(fixed_params, dynamic_params):
-    # Create a list of dynamic parameters with variations
-    dynamic_variations = {}
-
-    # Split each input by commas to get multiple values
-    for param, value in dynamic_params.items():
-        dynamic_variations[param] = [v.strip() for v in value.split(",") if v.strip()]
-
-    # Generate all possible combinations of dynamic parameters using itertools.product
-    if dynamic_variations:
-        dynamic_combinations = list(itertools.product(*dynamic_variations.values()))
-    else:
-        dynamic_combinations = []
-
-    product_data = []
-
-    # Create a dictionary for each product combination with fixed and dynamic parameters
-    for combination in dynamic_combinations:
-        product = {**fixed_params}
-        for idx, param in enumerate(dynamic_variations.keys()):
-            product[param] = combination[idx]
-
-        # Compute the name using both fixed and dynamic parameters
-        product['Name'] = compute_name(fixed_params, product)
-
-        # Compute the barcode and internal reference
-        product['Barcode'] = compute_barcode(product)
-        product['Internal Reference'] = compute_internal_reference(product)
-
-        # Compute the shape based on the size and whether it's round
-        product['Shape'] = compute_shape(product['Sizes'], fixed_params['Is Round'])
-
-        product_data.append(product)
-
-    # Create DataFrame from product data
-    df = pd.DataFrame(product_data)
-
-    # Reorder the DataFrame columns to match the desired output order
-    df = df[['Product Type', 'Can Be Sold', 'Can Be Purchased', 'Product Category',
-             'Weight unit of measure label','Sizes', 'Background', 'Routes', 'Purchase UoM',
-             'Family', 'Subfamily', 'Production WW', 'Production OTHERS',
-             'Name', 'Number of Irises', 'Finishing Effects', 'Shape',
-             'Barcode', 'HS Code']]
-
-    return df
-
-# Function to handle CSV export
 def download_csv(df):
     # Create a BytesIO buffer
     output = BytesIO()
     
     # Write the DataFrame to the buffer as a CSV file
     df.to_csv(output, index=False)
-    
     # Set the buffer's position to the start
     output.seek(0)
-    
     # Provide the download button with the CSV file
     st.download_button(
         label="Download as CSV",
@@ -160,6 +211,6 @@ def download_csv(df):
         mime="text/csv"
     )
 
+
 if __name__ == "__main__":
     main()
-
