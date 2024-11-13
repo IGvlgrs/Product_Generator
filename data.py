@@ -35,8 +35,7 @@ Final_df = {
     'Depth (packed)': '',
     'Weight (packed)': '',
     'HS Code': '',
-    'Package used for delivery': '',
-    'ratio': ''
+    'Package used for delivery': ''
 }
 
 
