@@ -1,8 +1,66 @@
 import streamlit as st
-from computer import compute_ArtName, compute_name, compute_barcode, compute_internal_reference, compute_shape, compute_height, compute_width, compute_depth,compute_ratio
 import itertools
 import pandas as pd
 from io import BytesIO
+from data import fixed_params, TextInputs, Checkboxes, Selectors
+
+class Family:
+    def __init__(self, fixed_params):
+        self.name = fixed_params['Family Name']
+        self.fixed_params = fixed_params
+        self.subfamilies = []
+        self.short=fixed_params['Family Short Name']
+
+    def __repr__(self):
+        return f"Family({self.fixed_params}, {self.subfamilies})"
+
+    def add_subfamily(self, subfamily):
+        self.subfamilies.append(subfamily)
+
+
+class Subfamily:
+    def __init__(self, subfamily_name):
+        self.name = subfamily_name
+        self.short = ''.join([word[0] for word in subfamily_name.split()])
+        self.subfamily_params = {
+        'Shapes': '',
+        'Mount Type': '',
+        'Background': '',
+        'Finishing Effects': '',
+        'Effects': ''
+        }
+        self.inc = 0
+        self.shapes = []
+    def __repr__(self):
+        return f"Subfamily({self.name}, {self.subfamily_params})"
+    def add_shape(self, shape):
+        self.shapes.append(shape)
+
+class Shapes:
+    def __init__(self, shape_name):
+        self.name = shape_name
+        self.short = ''.join([word[0] for word in shape_name.split()])
+        self.shape_params = {
+        'Number of Irises': '',
+        'Is Round': False
+        }
+        self.number_of_irises = []
+    def __repr__(self):
+        return f"Shapes({self.name}, {self.shape_params})"
+
+    def add_number_of_irises(self, number_of_irises):
+        self.number_of_irises.append(number_of_irises)
+
+
+class Number_of_Irises(Shapes):
+    def __init__(self, number_of_irises):
+        self.name = number_of_irises
+        self.number_of_irises_params = {
+        'Formats': ''
+        }
+    def __repr__(self):
+        return f"Number_of_Irises({self.name}, {self.number_of_irises_params})"
+
 
 # Constants
 Customer_Lead_Time = 21
@@ -23,7 +81,7 @@ Final_df = {
     'Product Category': '',
     'Short': '',
     'Mount Type': '',
-    'Background': 'Black',
+    'Background': '',
     'Shape': '',
     'Effect': '',
     'Is Round': '',
@@ -44,41 +102,13 @@ Final_df = {
     'Weight (packed)': '',
     'HS Code': '',
     'Package used for delivery': '',
-    'ratio': ''
-}
-
-dynamic_params = {
-    'Subfamily': '',
-    'Number of Irises': '',
-    'Finishing Effects': '',
-    'Background': '',
-    'Mount Type': '',
-    'Format': '',
-}
-
-# Fixed parameters with text input fields
-fixed_params = {
-    'Family Type': '',
-    'Short Family Type': '',
-    'Can Be Sold': '',
-    'Can Be Purchased': '',
-    'Product Type': '',
-    'Production WW': '',
-    'Production OTHERS': '',
-    'Production at IGP': '',
-    'Customer Lead Time': Customer_Lead_Time,
-    'HS Code': '',
-    'Product Category': '',
-    'Product Type': '',
-    'Routes': '',
-    'Unit of Measure': ''
 }
 
 
 # Text input fields for static parameters
 TextInputs = {
-        'Family Type': '',
-        'Short Family Type': ''
+        'Family Name': '',
+        'Family Short Name': '',
 }
 
 # Checkboxes for boolean inputs
@@ -88,7 +118,6 @@ Checkboxes = {
     'Production at IGP': False,
     'Production WW': False,
     'Production OTHERS': False,
-    'Is Round': False
 }
 
 
@@ -96,98 +125,243 @@ Checkboxes = {
 Selectors = {
     'Product Category': ['MANUFACTURED FINISHED PRODUCTS', 'RAW MATERIALS', 'FINISHED PRODUCTS'],
     'Product Type': ['Storable Product', 'Consumable', 'Service'],
-    'Routes': ['Replenish on Order (MTO)', 'Manufacture'],
+    'Routes': ['Replenish on Order (MTO), Manufacture'],
     'Unit of Measure': ['Unit(s)', 'Box(es)', 'Pallet(s)', 'Kg(s)', 'm(s)']
 }
 
+def display_subfamilies(sublist, family):
+    # Iterate through the subfamily list provided
+    st.write("Below is a list of dynamic parameters for this subfamily, please enter all possibilities separated by a comma. If no information is required or one of the option is not to have any value, please put a dash -")
+    st.write("For each shape provided, a new section will be displayed on the website to enter specific parameters for this shape.")
+    for sub in sublist:
+        sub = Subfamily(sub)  # Initialize the subfamily object
+        family.add_subfamily(sub)
+        st.subheader(sub.name)
+        st.write(f"Short for {sub.name}: {sub.short}")
+        sub.inc = st.number_input(f"{sub.name} - Increment for internal reference", value=0, key=f"subfamily_textinput_{sub.name}_internal_reference")
+        # Iterate through the subfamily parameters
+        for key in sub.subfamily_params:
+            sub.subfamily_params[key] = st.text_input(f"{sub.name} - {key}", value=sub.subfamily_params.get(key, ""), key=f"subfamily_textinput_{sub.name}_{key}")
+            # If shapes are provided, process them (without recreating the shape in every loop)
+        if sub.subfamily_params['Shapes']:
+            shape_list = sub.subfamily_params['Shapes'].split(',')  # Split shape input into a list
+            display_shapes(shape_list,sub)  # Pass the list of shapes for further processing
 
-# Function to generate product variations
-def generate_products(fixed_params, dynamic_params):
-    # Split dynamic parameters into lists of values
-    dynamic_values = {}
-    for param, value in dynamic_params.items():
-        # Split by commas and strip whitespace, treating '-' as empty
-        dynamic_values[param] = [v.strip() if v.strip() != '-' else '' for v in value.split(',')]
+def display_shapes(shape_list,sub):
+    # Iterate through the shape list provided
+    st.write("Below is a list of dynamic parameters for this shape, please enter all possibilities separated by a comma. If no information is required or one of the option is not to have any value, please put a dash -")
+    st.write("For each number of irises provided, a new section will be displayed on the website to enter specific parameters for this number of irises.")
+    for shape_name in shape_list:
+        shape = Shapes(shape_name)  # Initialize the shape object
+        sub.add_shape(shape)
+        st.subheader(shape.name)
+        st.write(f"Short for {shape.name}: {shape.short}")
 
-    # Generate all combinations of dynamic parameters
-    dynamic_combinations = list(itertools.product(*dynamic_values.values()))
+        # Iterate through the shape parameters
+        for key in shape.shape_params:
+            if key == 'Is Round':
+                shape.shape_params[key] = st.checkbox(f"{sub.name}-{shape.name} - {key}", value=shape.shape_params.get(key, ""), key=f"shape_checkbox_{shape.name}_{key}{sub.name}")
+            else:
+                shape.shape_params[key] = st.text_input(f"{sub.name}-{shape.name} - {key}", value=shape.shape_params.get(key, ""), key=f"shape_textinput_{shape.name}_{key}{sub.name}")
+            # If number of irises are provided, process them
+        if shape.shape_params['Number of Irises']:
+            iris_list = shape.shape_params['Number of Irises'].split(',')
+            display_number_of_irises(iris_list, shape, sub)
 
-    # Prepare the final product list (with the structure of Final_df)
-    product_list = []
-    inc = 456
-    for combo in dynamic_combinations:
-        # Start with a copy of Final_df for each product
-        product = Final_df.copy()
-        
-        # Update fixed parameters in the product
-        for key, value in fixed_params.items():
-            product[key] = value
-        
-        # Update dynamic parameters in the product
-        for i, param in enumerate(dynamic_values.keys()):
-            product[param] = combo[i]
-        artname = compute_ArtName(product)
-        product['Name'] = compute_name(product, artname)
-        product['ratio'] = compute_ratio(product)
-        product['Short'] = product['Name']
-        product['Barcode'] = compute_barcode(product)
-        product['Internal Reference'] = compute_internal_reference(product, inc)
-        # Increment for internal reference to fix
-        inc += 1
-        product['Shape'] = compute_shape(product['Format'], product['Number of Irises'], product['Is Round'])
-        product['Height (unpacked)'] = compute_height(product)
-        product['Width (unpacked)'] = compute_width(product)
-        product['Depth (unpacked)'] = compute_depth(product)
-        # Add this product variant to the list
-        product_list.append(product)
+def display_number_of_irises(nbiris_list,shape,sub):
+    # Iterate through the list of irises provided
+    st.write("Supported format types for products are for example 10x10, 20x120, 23 (diameter), 10x10x10 (cube), 10x10x20 (block), please provide 'height'x'width'x'depth' in priority")
+    for nbiris_name in nbiris_list:
+        nbiris = Number_of_Irises(nbiris_name)  # Initialize the iris object
+        shape.add_number_of_irises(nbiris)
+        st.subheader(nbiris.name)
 
-    # Convert the product list to a DataFrame
-    df = pd.DataFrame(product_list)
-    ## Drop lines where shape = Rectangle and ratio = integer
-    df_filtered = df[~((df['Shape'] == 'Rectangle') & (df['ratio'] == df['ratio'].astype(int)))]
+        # Iterate through iris-specific parameters
+        for key in nbiris.number_of_irises_params:
+            nbiris.number_of_irises_params[key] = st.text_input(f"{sub.name} {shape.name}-{nbiris.name} - {key}", value=nbiris.number_of_irises_params.get(key, ""), key=f"nbiris_textinput_{nbiris.name}_{key}{shape.name}{sub.name}")
+
+def generate_products(families):
+    products = []
+
+    # Iterate through each family
+    for family in families:
+        # Iterate through each subfamily in the family
+        for subfamily in family.subfamilies:
+            # Split subfamily_params that have comma-separated values into lists
+            param_combinations = prepare_subfamily_combinations(subfamily)
+
+            # Iterate through each shape in the subfamily
+            for shape in subfamily.shapes:
+                # If the shape has irises, we don't need to iterate over shapes separately again.
+                if shape.shape_params['Number of Irises']:
+                    for iris in shape.number_of_irises:
+                        # Handle comma-separated formats for each iris
+                        if iris.number_of_irises_params['Formats']:
+                            formats = iris.number_of_irises_params['Formats'].split(',')
+                            for format_value in formats:
+                                for sub_param_combination in param_combinations:
+                                    product = create_product_row(family, subfamily, shape, iris, format_value, sub_param_combination)
+                                    products.append(product)
+                        else:
+                            # If no formats, create product for each iris
+                            for sub_param_combination in param_combinations:
+                                product = create_product_row(family, subfamily, shape, iris, None, sub_param_combination)
+                                products.append(product)
+                else:
+                    # If no irises, we generate products based on the subfamily and shape params
+                    for sub_param_combination in param_combinations:
+                        product = create_product_row(family, subfamily, shape, None, None, sub_param_combination)
+                        products.append(product)
+
+    # Convert list of products to DataFrame
+    df = pd.DataFrame(products)
     return df
 
+def prepare_subfamily_combinations(subfamily):
+    # Prepare lists for subfamily params, handling both unique values and comma-separated lists
+    subfamily_param_lists = {}
+
+    for key, value in subfamily.subfamily_params.items():
+        # If the parameter contains commas, treat it as a list
+        if ',' in value:
+            subfamily_param_lists[key] = [item.strip() for item in value.split(',')]
+        else:
+            # If it's a unique value, treat it as a list with one entry
+            subfamily_param_lists[key] = [value.strip()]
+
+    # Generate all possible combinations of these parameters
+    keys = list(subfamily_param_lists.keys())
+    values = list(subfamily_param_lists.values())
+
+    # Use itertools.product to generate combinations
+    param_combinations = [dict(zip(keys, combination)) for combination in itertools.product(*values)]
+
+    return param_combinations
+
+def create_product_row(family, subfamily, shape, iris, format_value, sub_param_combination):
+    # Initialize a product row using the Final_df template
+    product = Final_df.copy()
+
+    # Populate family-specific fields
+    product['Family'] = family.fixed_params.get('Family Type', '').upper().strip()
+    product['Product Type'] = family.fixed_params.get('Product Type', '').upper().strip()
+    product['Can Be Sold'] = family.fixed_params.get('Can Be Sold', False)
+    product['Can Be Purchased'] = family.fixed_params.get('Can Be Purchased', False)
+    product['Production WW'] = family.fixed_params.get('Production WW', False)
+    product['Production OTHERS'] = family.fixed_params.get('Production OTHERS', False)
+    product['Production at IGP'] = family.fixed_params.get('Production at IGP', False)
+    product['HS Code'] = family.fixed_params.get('HS Code', '').upper().strip()
+    product['Product Category'] = family.fixed_params.get('Product Category', '').upper().strip()
+    product['Routes'] = family.fixed_params.get('Routes', '').upper().strip()
+    product['Unit of Measure'] = family.fixed_params.get('Unit of Measure', '').upper().strip()
+
+    # Populate subfamily-specific fields
+    product['Subfamily'] = subfamily.name.upper()
+    product.update({k: v.upper().strip() if isinstance(v, str) else v for k, v in sub_param_combination.items()})
+
+    # Populate shape-specific fields
+    product['Shape'] = shape.name.upper()
+    product.update({k: v.upper().strip() if isinstance(v, str) else v for k, v in shape.shape_params.items()})
+    product['Is Round'] = shape.shape_params['Is Round']
+    product['Format'] = format_value if format_value else ''
+    product['Family'] = family.name.upper()
+
+    # Populate number of irises-specific fields (if available)
+    if iris:
+        product['Number of Irises'] = iris.name.upper()
+        product.update({k: v.upper().strip() if isinstance(v, str) else v for k, v in iris.number_of_irises_params.items()})
+
+    # Remove 'Formats' from the product (drop it if exists)
+    product.pop('Formats', None)
+    product.pop('HS Code', None)
+    product.pop('Effect', None)
+    #Compute Height, Width, Depth, Weight
+    product['Height (unpacked)'] = compute_height(product, format_value)
+    product['Width (unpacked)'] = compute_width(product, format_value)
+    product['Depth (unpacked)'] = compute_depth(product, format_value)
+
+    # Optionally compute other fields, such as Barcode, Internal Reference, and Ratio
+    product['Barcode'] = compute_barcode(product, format_value)
+    inc=0
+    product['Internal Reference'] = compute_internal_reference(family, subfamily, shape, iris, format_value,inc)
+    product['Name'] = compute_ArtName(product, format_value)
+
+    return product
+
+def compute_height(product, format_value):
+    if 'x' in format_value:
+        return int(format_value.split('x')[0])
+    else:
+        return format_value
+
+def compute_width(product, format_value):
+    if 'x' in format_value:
+        return int(format_value.split('x')[1])
+    else:
+        return format_value
+
+def compute_depth(product, format_value):
+    if 'x' in format_value:
+        return int(format_value.split('x')[2])
+    else:
+        return 0.5
+
+# Example utility functions for computing values
+def compute_barcode(product, format_value):
+    initals_mount_type = ''.join([word[0] for word in product['Mount Type'].split()])
+    initals_finishing_effects = ''.join([word[0] for word in product['Finishing Effects'].split()])
+    first2letters_effect = product['Effects'].strip()[:2]
+    first2letters_background = product['Background'].strip()[:2]
+    initals_shape = ''.join([word[0] for word in product['Shape'].split()])
+    initials_subfamily = ''.join([word[0] for word in product['Subfamily'].split()])
+    ret = f"{initials_subfamily}{product['Number of Irises']}-{format_value}-{initals_shape}-{first2letters_background}{initals_mount_type}-{first2letters_effect}"
+    return ret
+
+def compute_internal_reference(family, subfamily, shape, iris, format_value,inc):
+    short_family = family.short
+    subfamily.inc += 1
+    return f"{short_family}{subfamily.short}-0000{subfamily.inc}"
+
+def compute_ArtName(product, format_value):
+    initials_subfamily = ''.join([word[0] for word in product['Subfamily'].split()])
+    return f"{initials_subfamily} {product['Shape']} {product['Number of Irises']} {product['Format']} {product['Background']} WITH {product['Mount Type']} {product['Effects']}"
 
 def main():
     st.title("Product Declinations")
+    st.markdown("This tool is designed to create the product Excel sheet currently in use to launch new products. Some production information will be required on the first section of this tool.")
+    st.markdown("---")
 
     # Section for fixed parameters
-    # Divider
-    st.markdown("---")
-    st.subheader("Fixed Product Parameters")
-    # Section for Family Type
-    st.subheader("Define the Family Type")
+    st.subheader("Production Parameters")
 
+    # Section for Family Type
+    st.subheader("Define the Family Name")
     for key in TextInputs:
-        fixed_params[key] = st.text_input(key, value=fixed_params[key])
+        fixed_params[key] = st.text_input(key, value=TextInputs.get(key, ""), key=f"family_textinput_{key}")
 
     # Section for checkboxes
     st.subheader("Production Checkboxes")
     for key in Checkboxes:
-        fixed_params[key] = st.checkbox(key, value=Checkboxes[key])
+        fixed_params[key] = st.checkbox(key, value=Checkboxes.get(key, False), key=f"family_checkbox_{key}")
 
     # Section for dropdown selectors
     st.subheader("Define following selectors")
-    selector_values = {}
     for key, options in Selectors.items():
-        fixed_params[key] = st.selectbox(key, options)
+        fixed_params[key] = st.selectbox(key, options, key=f"family_selectbox_{key}")
 
-    # Section for dynamic parameters 
-    st.markdown("---")
-    st.subheader("Dynamic Product Parameters")
-    st.write("To be defined with coma separated values, please add '-' for empty values and if an empty value is needed")
-    
-    for idx, param in enumerate(dynamic_params.keys()):
-        if param == 'Subfamily':
-            st.write("Short for Subfamily Type will be computed with its initials")
-        if param == 'Format':
-            st.write("Format example : '10x20, 20x30, 30x40'")
-        dynamic_params[param] = st.text_input(f"{param}", dynamic_params[param], key=f"dynamic_{idx}")
+    family = Family(fixed_params)
+    # Section for dynaomic parameters (subfamilies and shapes)
+    st.text("Please enter the list of subfamilies you want to generate separated by a coma")
+    subfamilies = st.text_input("Subfamilies (comma-separated)")
+    if subfamilies:
+        subfamily_list = [subfamily.strip() for subfamily in subfamilies.split(',') if subfamily.strip()]  # Clean and split subfamilies input
+        display_subfamilies(subfamily_list, family)
+    else:
+        st.warning("Please enter subfamilies separated by commas.")
 
-    ## Generate the different product declinations    
     st.markdown("---")
     if st.button("Generate Products"):
-        df = generate_products(fixed_params, dynamic_params)
+        df = generate_products([family])
         if not df.empty:
             st.write("Generated Products Data")
             st.dataframe(df)
@@ -195,10 +369,11 @@ def main():
         else:
             st.warning("No data generated. Please check your inputs.")
 
+# Assuming Subfamily and Shapes classes are properly defined elsewhere in your code.
 def download_csv(df):
     # Create a BytesIO buffer
     output = BytesIO()
-    
+
     # Write the DataFrame to the buffer as a CSV file
     df.to_csv(output, index=False)
     # Set the buffer's position to the start
@@ -210,7 +385,6 @@ def download_csv(df):
         file_name="products.csv",
         mime="text/csv"
     )
-
 
 if __name__ == "__main__":
     main()
