@@ -138,7 +138,7 @@ def display_subfamilies(sublist, family):
         family.add_subfamily(sub)
         st.subheader(sub.name)
         st.write(f"Short for {sub.name}: {sub.short}")
-        sub.inc = st.number_input(f"{sub.name} - Increment for internal reference", value=0, key=f"subfamily_textinput_{sub.name}_internal_reference")
+        sub.inc = st.number_input(f"{sub.name} - Increment for internal reference", value=0, key=f"subfamily_textinput_{sub.name}_internal_reference") 
         # Iterate through the subfamily parameters
         for key in sub.subfamily_params:
             sub.subfamily_params[key] = st.text_input(f"{sub.name} - {key}", value=sub.subfamily_params.get(key, ""), key=f"subfamily_textinput_{sub.name}_{key}")
@@ -156,7 +156,7 @@ def display_shapes(shape_list,sub):
         sub.add_shape(shape)
         st.subheader(shape.name)
         st.write(f"Short for {shape.name}: {shape.short}")
-
+        
         # Iterate through the shape parameters
         for key in shape.shape_params:
             if key == 'Is Round':
@@ -175,7 +175,7 @@ def display_number_of_irises(nbiris_list,shape,sub):
         nbiris = Number_of_Irises(nbiris_name)  # Initialize the iris object
         shape.add_number_of_irises(nbiris)
         st.subheader(nbiris.name)
-
+        
         # Iterate through iris-specific parameters
         for key in nbiris.number_of_irises_params:
             nbiris.number_of_irises_params[key] = st.text_input(f"{sub.name} {shape.name}-{nbiris.name} - {key}", value=nbiris.number_of_irises_params.get(key, ""), key=f"nbiris_textinput_{nbiris.name}_{key}{shape.name}{sub.name}")
@@ -220,15 +220,17 @@ def generate_products(families):
 def prepare_subfamily_combinations(subfamily):
     # Prepare lists for subfamily params, handling both unique values and comma-separated lists
     subfamily_param_lists = {}
-
+    
     for key, value in subfamily.subfamily_params.items():
         # If the parameter contains commas, treat it as a list
+        if key.lower() == 'shapes':
+            continue
         if ',' in value:
             subfamily_param_lists[key] = [item.strip() for item in value.split(',')]
         else:
             # If it's a unique value, treat it as a list with one entry
             subfamily_param_lists[key] = [value.strip()]
-
+    
     # Generate all possible combinations of these parameters
     keys = list(subfamily_param_lists.keys())
     values = list(subfamily_param_lists.values())
@@ -285,7 +287,7 @@ def create_product_row(family, subfamily, shape, iris, format_value, sub_param_c
     inc=0
     product['Internal Reference'] = compute_internal_reference(family, subfamily, shape, iris, format_value,inc)
     product['Name'] = compute_ArtName(product, format_value)
-
+    
     return product
 
 def compute_height(product, format_value):
@@ -293,7 +295,7 @@ def compute_height(product, format_value):
         return int(format_value.split('x')[0])
     else:
         return format_value
-
+    
 def compute_width(product, format_value):
     if 'x' in format_value:
         return int(format_value.split('x')[1])
@@ -301,7 +303,7 @@ def compute_width(product, format_value):
         return format_value
 
 def compute_depth(product, format_value):
-    if 'x' in format_value:
+    if len(format_value.split('x')) >= 3:
         return int(format_value.split('x')[2])
     else:
         return 0.5
@@ -314,7 +316,7 @@ def compute_barcode(product, format_value):
     first2letters_background = product['Background'].strip()[:2]
     initals_shape = ''.join([word[0] for word in product['Shape'].split()])
     initials_subfamily = ''.join([word[0] for word in product['Subfamily'].split()])
-    ret = f"{initials_subfamily}{product['Number of Irises']}-{format_value}-{initals_shape}-{first2letters_background}{initals_mount_type}-{first2letters_effect}"
+    ret = f"{initials_subfamily}{product['Number of Irises']}-{format_value}-{initals_shape}-{first2letters_background}{initals_mount_type}-{first2letters_effect}{initals_finishing_effects}"
     return ret
 
 def compute_internal_reference(family, subfamily, shape, iris, format_value,inc):
@@ -324,7 +326,7 @@ def compute_internal_reference(family, subfamily, shape, iris, format_value,inc)
 
 def compute_ArtName(product, format_value):
     initials_subfamily = ''.join([word[0] for word in product['Subfamily'].split()])
-    return f"{initials_subfamily} {product['Shape']} {product['Number of Irises']} {product['Format']} {product['Background']} WITH {product['Mount Type']} {product['Effects']}"
+    return f"{initials_subfamily} {product['Shape']} {product['Number of Irises']} {product['Format']} {product['Background']} WITH {product['Mount Type']} {product['Effects']} {product['Finishing Effects']}"
 
 def main():
     st.title("Product Declinations")
@@ -348,7 +350,7 @@ def main():
     st.subheader("Define following selectors")
     for key, options in Selectors.items():
         fixed_params[key] = st.selectbox(key, options, key=f"family_selectbox_{key}")
-
+    
     family = Family(fixed_params)
     # Section for dynaomic parameters (subfamilies and shapes)
     st.text("Please enter the list of subfamilies you want to generate separated by a coma")
@@ -373,7 +375,7 @@ def main():
 def download_csv(df):
     # Create a BytesIO buffer
     output = BytesIO()
-
+    
     # Write the DataFrame to the buffer as a CSV file
     df.to_csv(output, index=False)
     # Set the buffer's position to the start
